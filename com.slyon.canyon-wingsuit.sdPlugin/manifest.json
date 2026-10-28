@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "Canyon Wingsuit 3D",
+  "Version": "1.0.3.0",
+  "Author": "slyon",
+  "Description": "3rd-Person Procedural 3D Canyon Wingsuit Game for Stream Deck +. Steer with the rightmost dial, control pitch/lift with the leftmost dial, avoid stalling your chute or splattering into canyon carnage!",
+  "Category": "Canyon Wingsuit 3D",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "Icon": "imgs/plugin/plugin-icon",
+  "CodePath": "bin/plugin.js",
+  "UUID": "com.slyon.canyon-wingsuit",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.5"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "Actions": [
+    {
+      "Name": "Canyon 3D Viewport Tile (Key)",
+      "UUID": "com.slyon.canyon-wingsuit.viewport",
+      "Icon": "imgs/actions/viewport-icon",
+      "Tooltip": "Place on all 8 LCD keys (4x2 grid) to form the panoramic 3rd-person 3D canyon display. Press any key to reset after a crash or chute landing.",
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "UserTitleEnabled": false,
+      "Encoder": {
+        "layout": "layouts/canyon-hud.json",
+        "TriggerDescription": {
+          "Rotate": "Left Dial: Pitch Up/Down | Right Dial: Steer Left/Right",
+          "Push": "Reset / Relaunch Wingsuit",
+          "Touch": "Reset / Relaunch Wingsuit"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/viewport-key",
+          "TitleAlignment": "middle"
+        }
+      ]
+    },
+    {
+      "Name": "Canyon Flight Dial & HUD",
+      "UUID": "com.slyon.canyon-wingsuit.dial",
+      "Icon": "imgs/actions/dial-icon",
+      "Tooltip": "Place on the Stream Deck + dials or keys! Leftmost dial controls Pitch (Climb/Slow/Chute vs Dive/Speed/Carnage). Rightmost dial steers Left/Right.",
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "UserTitleEnabled": false,
+      "Encoder": {
+        "layout": "layouts/canyon-hud.json",
+        "TriggerDescription": {
+          "Rotate": "Left Dial: Pitch Up/Down | Right Dial: Steer Left/Right",
+          "Push": "Reset / Relaunch Wingsuit",
+          "Touch": "Reset / Relaunch Wingsuit"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/dial-icon"
+        }
+      ]
+    }
+  ]
+}

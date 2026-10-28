@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Stream Deck + Simulator — Canyon Wingsuit 3D</title>
+  <style>
+    :root {
+      --chassis: #181a20;
+      --chassis-border: #2c303c;
+      --key-bezel: #0b0c10;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, #231934 0%, #090a0f 75%);
+      color: #f1f5f9;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      overflow-x: hidden;
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: clamp(16px, 3vw, 22px);
+      letter-spacing: 0.8px;
+      color: #00f5d4;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      text-align: center;
+      max-width: 720px;
+      line-height: 1.5;
+    }
+    .subtitle kbd {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: #f8fafc;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .deck-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .streamdeck-plus {
+      background: linear-gradient(180deg, #242731 0%, #14161c 100%);
+      border: 3px solid var(--chassis-border);
+      border-radius: 28px;
+      padding: 24px 28px 28px 28px;
+      box-shadow: 0 28px 65px rgba(0, 0, 0, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transform-origin: top center;
+    }
+    @media (max-width: 740px) {
+      .streamdeck-plus {
+        transform: scale(0.52);
+        margin-bottom: -320px;
+      }
+    }
+    @media (min-width: 741px) and (max-width: 900px) {
+      .streamdeck-plus {
+        transform: scale(0.78);
+        margin-bottom: -140px;
+      }
+    }
+    /* 4x2 LCD Key Grid */
+    .lcd-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 144px);
+      grid-template-rows: repeat(2, 144px);
+      gap: 16px;
+      background: #0d0e12;
+      padding: 16px;
+      border-radius: 18px;
+      border: 2px solid #262936;
+      box-shadow: inset 0 6px 16px rgba(0, 0, 0, 0.9);
+    }
+    .lcd-key {
+      width: 144px;
+      height: 144px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #000;
+      border: 2px solid #2e3240;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+      cursor: pointer;
+      transition: transform 0.06s ease;
+    }
+    .lcd-key:active {
+      transform: scale(0.96);
+    }
+    .lcd-key svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* 800x100 Touch Strip */
+    .touch-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 152px);
+      gap: 4px;
+      background: #050608;
+      padding: 6px;
+      border-radius: 12px;
+      border: 2px solid #2a2f3d;
+      box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.9);
+      cursor: pointer;
+    }
+    .strip-slot {
+      width: 152px;
+      height: 76px;
+      overflow: hidden;
+      border-radius: 6px;
+    }
+    .strip-slot svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* 4 Rotary Dials */
+    .dials-row {
+      display: grid;
+      grid-template-columns: repeat(4, 144px);
+      gap: 16px;
+      justify-items: center;
+      margin-top: 4px;
+    }
+    .dial-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .dial-knob {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #3a3f50, #171922 75%);
+      border: 4px dashed #4b5267;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.75), inset 0 2px 4px rgba(255, 255, 255, 0.15);
+      position: relative;
+      cursor: grab;
+      touch-action: none;
+      transition: transform 0.06s ease-out;
+    }
+    .dial-knob:active {
+      cursor: grabbing;
+    }
+    .dial-knob.active-control {
+      border-color: #00f5d4;
+    }
+    .dial-knob::after {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 18px;
+      border-radius: 3px;
+      background: #ff2a2a;
+    }
+    .dial-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .dial-btn {
+      background: #222736;
+      color: #e2e8f0;
+      border: 1px solid #3b4256;
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: none;
+    }
+    .dial-btn:hover, .dial-btn:active {
+      background: #00f5d4;
+      color: #090a0f;
+      border-color: #00f5d4;
+    }
+    .dial-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Stream Deck + Simulator — Canyon Wingsuit 3D</h1>
+  <div class="subtitle">
+    <strong>Leftmost Dial:</strong> Drag, Scroll, Hold Buttons, or <kbd>W</kbd>/<kbd>S</kbd> (Climb/Slow &rarr; Chute vs Dive/Fast &rarr; Carnage)<br/>
+    <strong>Rightmost Dial:</strong> Drag, Scroll, Hold Buttons, or <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> (Steer Left/Right) &nbsp;|&nbsp;
+    <strong>Reset:</strong> Tap any Key/Touch Strip or <kbd>Space</kbd>
+    <div style="margin-top: 10px;">
+      <a href="./com.slyon.canyon-wingsuit.streamDeckPlugin?v=1.0.2" download="com.slyon.canyon-wingsuit.streamDeckPlugin" style="display:inline-block; background:#00f5d4; color:#090a0f; font-weight:800; font-size:13px; padding:7px 16px; border-radius:8px; text-decoration:none; box-shadow:0 4px 12px rgba(0,245,212,0.3);">
+        ⬇ Download .streamDeckPlugin Installer (v1.0.2)
+      </a>
+    </div>
+  </div>
+
+  <div class="deck-wrapper">
+    <div class="streamdeck-plus">
+      <!-- 4x2 LCD Key Grid -->
+      <div class="lcd-grid" id="lcdGrid"></div>
+
+      <!-- Wide Touch Strip (4 x 200x100 segments) -->
+      <div class="touch-strip" id="touchStrip" title="Tap Touch Strip to Reset"></div>
+
+      <!-- 4 Rotary Encoders -->
+      <div class="dials-row" id="dialsRow"></div>
+    </div>
+  </div>
+
+  <script src="./sim-bundle.js"></script>
+  <script>
+    const {
+      CanyonGameEngine,
+      buildMasterSceneSvgBody,
+      renderKeyTileSvg,
+      renderTouchStripSlotSvg
+    } = window.CanyonSim;
+
+    const savedBest = Number(localStorage.getItem("canyon_wingsuit_highscore") || "0");
+    const engine = new CanyonGameEngine((newBest) => {
+      localStorage.setItem("canyon_wingsuit_highscore", String(newBest));
+    });
+    engine.setHighScore(savedBest);
+
+    // Create 8 LCD key elements (2 rows x 4 cols)
+    const lcdGrid = document.getElementById("lcdGrid");
+    const keyCells = [];
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 4; col++) {
+        const div = document.createElement("div");
+        div.className = "lcd-key";
+        div.title = `Key (${col}, ${row}) — Click to Reset`;
+        div.addEventListener("click", () => engine.resetToReady());
+        lcdGrid.appendChild(div);
+        keyCells.push({ col, row, el: div });
+      }
+    }
+
+    // Create 4 Touch Strip segments
+    const touchStrip = document.getElementById("touchStrip");
+    touchStrip.addEventListener("click", () => engine.resetToReady());
+    const stripCells = [];
+    for (let col = 0; col < 4; col++) {
+      const div = document.createElement("div");
+      div.className = "strip-slot";
+      touchStrip.appendChild(div);
+      stripCells.push({ col, el: div });
+    }
+
+    // Create 4 Rotary Dials
+    const dialAngles = [0, 0, 0, 0];
+    const dialLabels = [
+      "DIAL 1: PITCH (UP / DOWN)",
+      "DIAL 2: RADAR / PITCH",
+      "DIAL 3: SCORE / STEER",
+      "DIAL 4: STEER (LEFT / RIGHT)"
+    ];
+    const dialsRow = document.getElementById("dialsRow");
+    const knobEls = [];
+
+    function rotateDial(col, ticks) {
+      dialAngles[col] += ticks * 15;
+      knobEls[col].style.transform = `rotate(${dialAngles[col]}deg)`;
+      if (col <= 1) {
+        engine.onPitchDialRotate(ticks);
+      } else {
+        engine.onSteerDialRotate(ticks);
+      }
+    }
+
+    function bindHoldButton(btn, col, dir) {
+      let interval = null;
+      const start = (e) => {
+        e.preventDefault();
+        rotateDial(col, dir);
+        if (interval) clearInterval(interval);
+        interval = setInterval(() => rotateDial(col, dir), 85);
+      };
+      const stop = () => {
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      };
+      btn.addEventListener("pointerdown", start);
+      window.addEventListener("pointerup", stop);
+      window.addEventListener("pointercancel", stop);
+    }
+
+    for (let col = 0; col < 4; col++) {
+      const unit = document.createElement("div");
+      unit.className = "dial-unit";
+
+      const knob = document.createElement("div");
+      knob.className = "dial-knob" + (col === 0 || col === 3 ? " active-control" : "");
+      knob.title = "Drag Left/Right, Scroll Mouse Wheel, or Tap to Reset";
+
+      // Wheel rotation
+      knob.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const ticks = e.deltaY < 0 ? 1 : -1;
+        rotateDial(col, ticks);
+      });
+
+      // Pointer drag rotation on the dial knob
+      let dragging = false;
+      let lastX = 0;
+      let moved = false;
+      knob.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        moved = false;
+        lastX = e.clientX;
+        knob.setPointerCapture(e.pointerId);
+      });
+      knob.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - lastX;
+        if (Math.abs(dx) >= 10) {
+          const ticks = Math.trunc(dx / 10);
+          rotateDial(col, ticks);
+          lastX += ticks * 10;
+          moved = true;
+        }
+      });
+      knob.addEventListener("pointerup", () => {
+        if (dragging && !moved && (engine.phase === "CARNAGE" || engine.phase === "CHUTE")) {
+          engine.resetToReady();
+        }
+        dragging = false;
+      });
+
+      knobEls.push(knob);
+
+      const btns = document.createElement("div");
+      btns.className = "dial-btns";
+      const btnLeft = document.createElement("button");
+      btnLeft.className = "dial-btn";
+      btnLeft.textContent = col <= 1 ? "▼ DIVE" : "↺ LEFT";
+      bindHoldButton(btnLeft, col, -1);
+
+      const btnRight = document.createElement("button");
+      btnRight.className = "dial-btn";
+      btnRight.textContent = col <= 1 ? "▲ CLIMB" : "↻ RIGHT";
+      bindHoldButton(btnRight, col, 1);
+
+      btns.appendChild(btnLeft);
+      btns.appendChild(btnRight);
+
+      const lbl = document.createElement("div");
+      lbl.className = "dial-label";
+      lbl.textContent = dialLabels[col];
+
+      unit.appendChild(knob);
+      unit.appendChild(btns);
+      unit.appendChild(lbl);
+      dialsRow.appendChild(unit);
+    }
+
+    // Keyboard bindings for testing dials smoothly
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        rotateDial(3, -1);
+      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+        e.preventDefault();
+        rotateDial(3, 1);
+      } else if (e.key === "w" || e.key === "W" || e.key === "ArrowUp") {
+        e.preventDefault();
+        rotateDial(0, 1); // Climb & Slow down -> Chute if too slow
+      } else if (e.key === "s" || e.key === "S" || e.key === "ArrowDown") {
+        e.preventDefault();
+        rotateDial(0, -1); // Dive & Speed up -> Carnage if hit ground
+      } else if (e.key === " ") {
+        e.preventDefault();
+        engine.resetToReady();
+      }
+    });
+
+    let lastTime = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.1, Math.max(0.008, (now - lastTime) / 1000));
+      lastTime = now;
+
+      engine.step(dt);
+
+      const masterBody = buildMasterSceneSvgBody(engine);
+      for (const cell of keyCells) {
+        cell.el.innerHTML = renderKeyTileSvg(masterBody, cell.col, cell.row);
+      }
+      for (const slot of stripCells) {
+        slot.el.innerHTML = renderTouchStripSlotSvg(slot.col, engine);
+      }
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

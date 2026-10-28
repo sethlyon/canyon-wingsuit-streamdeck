@@ -1,0 +1,5 @@
+node_modules/
+*.log
+com.slyon.canyon-wingsuit.sdPlugin/logs/
+.DS_Store
+wrangler.jsonc
