@@ -416,7 +416,7 @@
         cell.el.innerHTML = renderKeyTileSvg(masterBody, cell.col, cell.row);
       }
       for (const slot of stripCells) {
-        slot.el.innerHTML = renderTouchStripSlotSvg(slot.col, engine);
+        slot.el.innerHTML = renderTouchStripSlotSvg(slot.col, engine, masterBody);
       }
 
       requestAnimationFrame(frame);

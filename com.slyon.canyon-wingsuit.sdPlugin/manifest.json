@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Canyon Wingsuit 3D",
-  "Version": "1.0.3.0",
+  "Version": "1.0.4.0",
   "Author": "slyon",
   "Description": "3rd-Person Procedural 3D Canyon Wingsuit Game for Stream Deck +. Steer with the rightmost dial, control pitch/lift with the leftmost dial, avoid stalling your chute or splattering into canyon carnage!",
   "Category": "Canyon Wingsuit 3D",

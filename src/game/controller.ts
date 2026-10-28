@@ -112,9 +112,10 @@ class CanyonGameCoordinator {
 
       const promises: Promise<unknown>[] = [];
 
-      // 1. Render 4x2 LCD Key Grid tiles
+      const masterBody = buildMasterSceneSvgBody(this.engine);
+
+      // 1. Render 4x2 LCD Key Grid tiles (Mountains extending up from Touch Strip + Top Row HUD)
       if (this.visibleKeys.size > 0) {
-        const masterBody = buildMasterSceneSvgBody(this.engine);
         for (const keyAction of this.visibleKeys.values()) {
           const coords = keyAction.coordinates ?? { column: 0, row: 0 };
           const tileSvg = renderKeyTileSvg(masterBody, coords.column, coords.row);
@@ -122,11 +123,11 @@ class CanyonGameCoordinator {
         }
       }
 
-      // 2. Render Stream Deck + Touch Strip HUD segments (4 x 200x100)
+      // 2. Render Stream Deck + Touch Strip segments (4 x 200x100 with Wingman in center!)
       if (this.visibleDials.size > 0) {
         for (const dialAction of this.visibleDials.values()) {
           const col = dialAction.coordinates?.column ?? 0;
-          const hudSvg = renderTouchStripSlotSvg(col, this.engine);
+          const hudSvg = renderTouchStripSlotSvg(col, this.engine, masterBody);
           promises.push(
             dialAction.setFeedback({
               canvas: svgToDataUri(hudSvg)
