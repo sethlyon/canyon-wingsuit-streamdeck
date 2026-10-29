@@ -20,9 +20,9 @@ var CanyonSim = (function (exports) {
         /** Roll / bank angle in degrees (-58 left to +58 right) controlled by Rightmost Dial */
         roll = 0;
         targetRoll = 0;
-        /** Pitch angle in degrees (-45 dive to +45 climb) controlled by Leftmost Dial */
-        pitch = -4;
-        targetPitch = -4;
+        /** Pitch angle in degrees (-18 dive to +18 climb) controlled by Leftmost Dial */
+        pitch = 0;
+        targetPitch = 0;
         // Scoring & Telemetry
         distanceTraveled = 0;
         score = 0;
@@ -61,15 +61,15 @@ var CanyonSim = (function (exports) {
             this.distanceTraveled = 0;
             const startSlice = this.sampleCanyonAt(0);
             this.playerX = startSlice.centerX;
-            this.playerY = startSlice.floorY + 50;
+            this.playerY = startSlice.floorY + 54;
             this.vx = 0;
             this.vy = 0;
             this.speed = this.BASE_START_SPEED;
             this.distanceSpeedBoost = 0;
             this.roll = 0;
             this.targetRoll = 0;
-            this.pitch = -3;
-            this.targetPitch = -3;
+            this.pitch = 0;
+            this.targetPitch = 0;
             this.score = 0;
             this.isNewHighScore = false;
             this.proximityMultiplier = 1.0;
@@ -88,22 +88,22 @@ var CanyonSim = (function (exports) {
          */
         sampleCanyonAt(z) {
             // Difficulty ramps up steadily the further down the canyon he flies
-            const difficulty = Math.min(2.6, 1.0 + Math.max(0, z) / 5500);
+            const difficulty = Math.min(2.2, 1.0 + Math.max(0, z) / 7500);
             // Multi-octave winding canyon centerline
-            const centerX = Math.sin(z * 0.0044) * 72 * difficulty +
-                Math.cos(z * 0.0102 + 1.3) * 38 * difficulty +
-                Math.sin(z * 0.021 - 0.7) * 16 * Math.min(1.8, difficulty);
-            // Undulating canyon floor & rim
-            const floorY = Math.sin(z * 0.0055 + 0.4) * 14 +
-                Math.cos(z * 0.013) * 7;
-            const canyonDepth = 84 + Math.sin(z * 0.0031) * 12;
+            const centerX = Math.sin(z * 0.004) * 66 * difficulty +
+                Math.cos(z * 0.0095 + 1.3) * 32 * difficulty +
+                Math.sin(z * 0.019 - 0.7) * 14 * Math.min(1.6, difficulty);
+            // Gently undulating canyon floor & rim
+            const floorY = Math.sin(z * 0.0045 + 0.4) * 7 +
+                Math.cos(z * 0.011) * 3;
+            const canyonDepth = 88 + Math.sin(z * 0.0031) * 10;
             const rimY = floorY + canyonDepth;
-            // Canyon narrows as distance/difficulty increases
-            const widthWave = Math.sin(z * 0.0063 + 2.1) * 8;
-            const floorHalfWidth = Math.max(20, 40 - (difficulty - 1) * 9 + widthWave);
-            const rimHalfWidth = floorHalfWidth + 42 + Math.cos(z * 0.004) * 8;
+            // Canyon narrows gradually as distance/difficulty increases
+            const widthWave = Math.sin(z * 0.0063 + 2.1) * 7;
+            const floorHalfWidth = Math.max(26, 46 - (difficulty - 1) * 8 + widthWave);
+            const rimHalfWidth = floorHalfWidth + 46 + Math.cos(z * 0.004) * 8;
             const sliceIndex = Math.floor(z / 30);
-            const hasArch = sliceIndex > 12 && sliceIndex % 29 === 0;
+            const hasArch = sliceIndex > 15 && sliceIndex % 33 === 0;
             return {
                 z,
                 relZ: z - this.playerZ,
@@ -145,11 +145,11 @@ var CanyonSim = (function (exports) {
             if (this.phase === "READY") {
                 this.startFlying();
             }
-            // Adjust target pitch: positive ticks = pitch UP (lift out of canyon, slows down), negative = pitch DOWN (dive into canyon)
-            this.targetPitch = Math.max(-48, Math.min(48, this.targetPitch + ticks * 5.5));
-            this.playerY += ticks * 1.7;
-            // Turning UP slows him down as he lifts out of the canyon; turning DOWN accelerates him
-            this.speed = Math.max(this.STALL_SPEED - 2, Math.min(this.MAX_SPEED, this.speed - ticks * 4.5));
+            // Smaller max elevator effect (-18 to +18 deg) and finer per-tick control
+            this.targetPitch = Math.max(-18, Math.min(18, this.targetPitch + ticks * 2.2));
+            this.playerY += ticks * 0.45;
+            // Turning UP gently slows him down as he lifts; turning DOWN gently accelerates him
+            this.speed = Math.max(this.STALL_SPEED - 2, Math.min(this.MAX_SPEED, this.speed - ticks * 1.5));
         }
         /**
          * Handles rotation of the Rightmost Dial (Steering Left/Right).
@@ -168,8 +168,8 @@ var CanyonSim = (function (exports) {
                 this.startFlying();
             }
             // Adjust roll/bank angle for steering; the birdman stays centered while the canyon shifts around him
-            this.targetRoll = Math.max(-58, Math.min(58, this.targetRoll + ticks * 7.0));
-            this.playerX += ticks * 2.4;
+            this.targetRoll = Math.max(-52, Math.min(52, this.targetRoll + ticks * 5.8));
+            this.playerX += ticks * 1.9;
         }
         startFlying() {
             this.phase = "FLYING";
@@ -178,7 +178,7 @@ var CanyonSim = (function (exports) {
             this.distanceTraveled = 0;
             const startSlice = this.sampleCanyonAt(0);
             this.playerX = startSlice.centerX;
-            this.playerY = startSlice.floorY + 50;
+            this.playerY = startSlice.floorY + 54;
             this.speed = this.BASE_START_SPEED;
             this.distanceSpeedBoost = 0;
             this.score = 0;
@@ -201,47 +201,48 @@ var CanyonSim = (function (exports) {
                 const desiredX = slice.centerX;
                 const dx = lookAhead.centerX - slice.centerX;
                 this.playerX += (desiredX - this.playerX) * Math.min(1, dt * 6);
-                this.playerY = slice.floorY + 48 + Math.sin(this.tickCount * 0.12) * 3.5;
+                this.playerY = slice.floorY + 54 + Math.sin(this.tickCount * 0.12) * 3.0;
                 this.roll = Math.max(-32, Math.min(32, dx * 0.6));
-                this.pitch = -4 + Math.cos(this.tickCount * 0.1) * 2;
+                this.pitch = Math.cos(this.tickCount * 0.1) * 1.5;
                 this.targetRoll = 0;
-                this.targetPitch = -4;
+                this.targetPitch = 0;
                 this.speed = this.BASE_START_SPEED;
                 return;
             }
             if (this.phase === "FLYING") {
                 // Smoothly interpolate roll and pitch toward dial targets
-                this.roll += (this.targetRoll - this.roll) * Math.min(1, dt * 10);
-                this.pitch += (this.targetPitch - this.pitch) * Math.min(1, dt * 10);
-                // Gentle aerodynamic self-leveling so you can hold a bank or carve smoothly
+                this.roll += (this.targetRoll - this.roll) * Math.min(1, dt * 8.5);
+                this.pitch += (this.targetPitch - this.pitch) * Math.min(1, dt * 7.5);
+                // Gentle aerodynamic self-leveling on roll & pitch trim so elevator doesn't stay locked at extremes
                 this.targetRoll *= Math.pow(0.84, dt);
+                this.targetPitch *= Math.pow(0.92, dt);
                 // Distance speed boost: the further he flies, the faster the natural canyon tailwind/grade pushes him!
-                this.distanceSpeedBoost = Math.min(145, (this.playerZ / 1000) * 18.5);
+                this.distanceSpeedBoost = Math.min(145, (this.playerZ / 1000) * 12.0);
                 const naturalTargetSpeed = this.BASE_START_SPEED + this.distanceSpeedBoost;
                 // Pitch physics:
-                // Positive pitch (climbing out of canyon) slows him down strongly;
-                // Negative pitch (diving into canyon) accelerates him even faster;
+                // Positive pitch (climbing out of canyon) slows him down gradually;
+                // Negative pitch (diving into canyon) accelerates him;
                 // When near neutral pitch, speed gravitates toward the ever-increasing naturalTargetSpeed!
                 if (this.pitch > 2) {
                     // Climbing bleeds airspeed (so pulling up too much/too long pops the parachute)
-                    const climbBrake = (this.pitch - 2) * 1.95;
+                    const climbBrake = (this.pitch - 2) * 1.05;
                     this.speed -= climbBrake * dt;
                 }
                 else {
                     // Diving or gliding accelerates with distance + dive angle
-                    const diveBoost = Math.max(0, -this.pitch - 4) * 2.1;
+                    const diveBoost = Math.max(0, -this.pitch - 2) * 1.8;
                     const targetSpd = Math.min(this.MAX_SPEED, naturalTargetSpeed + diveBoost * 1.4);
-                    const accelRate = this.speed < targetSpd ? 18 + diveBoost : 8;
+                    const accelRate = this.speed < targetSpd ? 14 + diveBoost : 7;
                     this.speed += Math.sign(targetSpd - this.speed) * Math.min(Math.abs(targetSpd - this.speed), accelRate * dt);
                 }
                 this.speed = Math.min(this.MAX_SPEED, this.speed);
-                // Vertical velocity from pitch + lift
-                const liftFactor = Math.max(0.35, this.speed / this.BASE_START_SPEED);
-                this.vy = this.pitch * 1.35 * liftFactor - 4.0;
+                // Vertical velocity from pitch + gentle natural elevation decay (-1.1 units/sec at level pitch)
+                const liftFactor = Math.max(0.7, Math.min(1.3, this.speed / this.BASE_START_SPEED));
+                this.vy = this.pitch * 0.42 * liftFactor - 1.1;
                 this.playerY += this.vy * dt;
                 // Lateral velocity from roll/steering (scales slightly with speed so steering stays crisp at high speeds)
-                const speedSteerScale = 0.75 + 0.35 * (this.speed / this.BASE_START_SPEED);
-                this.vx = this.roll * 1.85 * speedSteerScale;
+                const speedSteerScale = 0.75 + 0.3 * (this.speed / this.BASE_START_SPEED);
+                this.vx = this.roll * 1.65 * speedSteerScale;
                 this.playerX += this.vx * dt;
                 // Forward movement down the canyon (faster and faster as distance increases!)
                 const forwardStep = this.speed * 1.42 * dt;
@@ -260,13 +261,13 @@ var CanyonSim = (function (exports) {
                 const wallClearance = halfWidth - Math.abs(offsetFromCenter);
                 // Check rock arch collision
                 const archHit = slice.hasArch &&
-                    Math.abs(this.playerY - (slice.rimY - 10)) < 7 &&
+                    Math.abs(this.playerY - (slice.rimY - 10)) < 6.5 &&
                     Math.abs(offsetFromCenter) < halfWidth;
-                if (agl <= 3.5) {
+                if (agl <= 3.0) {
                     this.triggerCarnage("SPLATTERED ON CANYON FLOOR!");
                     return;
                 }
-                if (this.playerY < slice.rimY && wallClearance <= 4.0) {
+                if (this.playerY < slice.rimY && wallClearance <= 3.5) {
                     this.triggerCarnage(offsetFromCenter < 0 ? "SLAMMED LEFT CLIFF WALL!" : "SLAMMED RIGHT CLIFF WALL!");
                     return;
                 }
@@ -283,9 +284,9 @@ var CanyonSim = (function (exports) {
                     prox += (16 - wallClearance) / 8;
                 }
                 if (this.playerY > slice.rimY + 6) {
-                    // Above the canyon rim: strong headwind drag slows you down toward chute deployment!
+                    // Above the canyon rim: headwind drag slows you down toward chute deployment!
                     prox = 0.5;
-                    this.speed -= (this.playerY - slice.rimY) * 0.55 * dt;
+                    this.speed -= (this.playerY - slice.rimY) * 0.35 * dt;
                     if (this.speed <= this.STALL_SPEED) {
                         this.triggerChuteDeploy();
                         return;
@@ -1015,7 +1016,7 @@ var CanyonSim = (function (exports) {
         // 5. BOTTOM-LEFT BUTTON (0, 1) [x=20..180, y=180..340]: DIAL 1 PITCH HORIZON
         // ============================================================================
         const pitchSign = engine.pitch >= 0 ? `+${Math.round(engine.pitch)}° UP` : `${Math.round(engine.pitch)}° DN`;
-        const horizonLineY = Math.max(222, Math.min(292, Math.round(257 - engine.pitch * 0.85)));
+        const horizonLineY = Math.max(222, Math.min(292, Math.round(257 - engine.pitch * 1.8)));
         hud.push(`<rect x="26" y="186" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.78" stroke="${borderCol}" stroke-width="2"/>`, `<text x="36" y="206" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">DIAL 1: PITCH</text>`, `<text x="164" y="206" text-anchor="end" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="13">${pitchSign}</text>`, 
         // Artificial Horizon Pitch Ladder Scope
         `<rect x="36" y="214" width="128" height="86" rx="8" fill="#10182b" stroke="#3d4b73" stroke-width="1.5"/>`, `<line x1="65" y1="235" x2="135" y2="235" stroke="#475569" stroke-width="1" stroke-dasharray="4 4"/>`, `<line x1="55" y1="257" x2="145" y2="257" stroke="#64748b" stroke-width="1"/>`, `<line x1="65" y1="279" x2="135" y2="279" stroke="#475569" stroke-width="1" stroke-dasharray="4 4"/>`, `<line x1="42" y1="${horizonLineY}" x2="158" y2="${horizonLineY}" stroke="#00f5d4" stroke-width="3" stroke-linecap="round"/>`, `<circle cx="100" cy="257" r="4" fill="#ffbe0b" stroke="#ffffff" stroke-width="1.2"/>`, `<text x="100" y="315" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="800" font-size="11">▲ UP: CLIMB &amp; SLOW</text>`, `<text x="100" y="329" text-anchor="middle" fill="#ff595e" font-family="Arial, sans-serif" font-weight="800" font-size="11">▼ DN: DIVE &amp; SPEED</text>`);

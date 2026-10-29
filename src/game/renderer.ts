@@ -501,7 +501,7 @@ function renderSixButtonCockpitHud(engine: CanyonGameEngine, slice: CanyonSlice,
   // 5. BOTTOM-LEFT BUTTON (0, 1) [x=20..180, y=180..340]: DIAL 1 PITCH HORIZON
   // ============================================================================
   const pitchSign = engine.pitch >= 0 ? `+${Math.round(engine.pitch)}° UP` : `${Math.round(engine.pitch)}° DN`;
-  const horizonLineY = Math.max(222, Math.min(292, Math.round(257 - engine.pitch * 0.85)));
+  const horizonLineY = Math.max(222, Math.min(292, Math.round(257 - engine.pitch * 1.8)));
 
   hud.push(
     `<rect x="26" y="186" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.78" stroke="${borderCol}" stroke-width="2"/>`,
