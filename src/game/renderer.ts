@@ -4,9 +4,11 @@ import { renderBirdmanSprite } from "./birdman-sprite.js";
 /**
  * Unified Master Scene Coordinate Space (800 x 460):
  * - Columns 0..3 each span 200px horizontally (Total Width = 800px).
- * - Row 0 (Top 4 LCD Keys):      x = col * 200 + 20, y = 0,   w = 160, h = 160 (HUD + Sky + Mountain Peaks)
- * - Row 1 (Bottom 4 LCD Keys):   x = col * 200 + 20, y = 180, w = 160, h = 160 (Towering Canyon Walls & Mountains)
- * - Touch Strip (4 x 200x100):   x = col * 200,      y = 360, w = 200, h = 100 (Seamless 800x100 Gorge + Centered Wingman!)
+ * - Row 0 (Top 4 LCD Keys):      x = col * 200 + 20, y = 0,   w = 160, h = 160
+ * - Row 1 (Bottom 4 LCD Keys):   x = col * 200 + 20, y = 180, w = 160, h = 160
+ *   -> Bottom-Middle 2 Keys (col 1 & col 2, row 1) are kept 100% OPEN for the canyon & mountains!
+ *   -> The other 6 keys house all the detailed cockpit HUD instruments over the mountains!
+ * - Touch Strip (4 x 200x100):   x = col * 200,      y = 360, w = 200, h = 100 (Clean 800x100 Gorge + Wingman!)
  */
 export const MASTER_W = 800;
 export const MASTER_H = 460;
@@ -41,17 +43,16 @@ export function svgToDataUri(svg: string): string {
 }
 
 /**
- * Builds the unified 800x460 3D scene SVG body where:
- * - The 3rd-person Wingman flies on the wide Touch Strip (y = 360..460, centered at x = 400, y = 416)
- * - The 3D canyon walls and jagged mountains extend continuously upward from the Touch Strip (y = 460)
- *   through the lower row of buttons (y = 180..340) and into the upper row of buttons (y = 0..160)!
- * - The HUD instruments & scoreboard sit in the top row of buttons (y = 0..160).
+ * Builds the unified 800x460 3D scene SVG body:
+ * - Touch Strip (y = 360..460): Uncluttered 800x100 canyon floor & centered 3rd-person Wingman.
+ * - 3D Canyon & Mountains extend continuously upward from the Touch Strip through all 8 buttons!
+ * - Bottom-Middle 2 Buttons ((1,1) and (2,1)) remain completely open windows into the winding canyon!
+ * - The surrounding 6 Buttons ((0,0), (1,0), (2,0), (3,0), (0,1), (3,1)) display the detailed cockpit HUD!
  */
 export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
   const W = MASTER_W;
   const H = MASTER_H;
 
-  // Screen shake during carnage
   const shakeX =
     engine.screenShake > 0
       ? Math.round(Math.sin(engine.tickCount * 2.7) * engine.screenShake)
@@ -63,8 +64,6 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
 
   const currentSlice = engine.sampleCanyonAt(engine.playerZ);
 
-  // Camera locked to player X; horizon sits in the upper keys so mountains & canyon walls
-  // sweep continuously from the Touch Strip (y=460) up into Row 1 and Row 0 keys!
   const camX = engine.playerX;
   const camY = engine.playerY + 10 - engine.pitch * 0.35;
   const horizonY = Math.round(215 + engine.pitch * 2.4);
@@ -107,7 +106,7 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
     `<circle cx="${sunX}" cy="${sunY}" r="44" fill="#ffd166" opacity="0.85"/>`
   );
 
-  // Distant mountain range silhouette along the horizon (extends up into Row 0/Row 1 buttons)
+  // Distant mountain range silhouette along the horizon
   const bgMtnPts: string[] = [`-200,${clampedHorizon + 4}`];
   for (let mx = -160; mx <= W + 160; mx += 40) {
     const wave =
@@ -138,14 +137,11 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
 
     const depthBankShift = bankYawShift * (relZ / 160);
     const projectX = (wx: number) => Math.round(W * 0.5 + (wx - camX) * scale + depthBankShift);
-    // Shift vertical projection so near canyon floor sits right in the Touch Strip (y ~ 380..455)
-    // while the canyon walls & mountain peaks tower up through Row 1 (180..340) and Row 0 (0..160)!
     const projectY = (wy: number) => Math.round(clampedHorizon + 58 - (wy - camY) * scale * 1.38);
 
     const midHalfW = slice.floorHalfWidth + (slice.rimHalfWidth - slice.floorHalfWidth) * 0.52;
     const midWorldY = slice.floorY + (slice.rimY - slice.floorY) * 0.52;
 
-    // Towering mountain peaks rising high above the canyon rim so they extend from the Touch Strip up into the buttons!
     const leftPeakHeight = 46 + Math.abs(Math.sin(slice.z * 0.0085)) * 48;
     const rightPeakHeight = 46 + Math.abs(Math.cos(slice.z * 0.0079 + 1.1)) * 48;
     const peakOuterHalfW = slice.rimHalfWidth + 48;
@@ -184,19 +180,19 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
     const near = projected[i + 1];
     const sIdx = near.slice.strataIndex;
 
-    // Outer mountain slopes extending off screen edges
+    // Outer mountain slopes
     parts.push(
       `<polygon points="-240,${far.floorY} ${far.peakLeftX},${far.peakLeftY} ${near.peakLeftX},${near.peakLeftY} -240,${near.floorY}" fill="${leftPeakColors[sIdx]}"/>`,
       `<polygon points="${far.peakRightX},${far.peakRightY} ${W + 240},${far.floorY} ${W + 240},${near.floorY} ${near.peakRightX},${near.peakRightY}" fill="${rightPeakColors[sIdx]}"/>`
     );
 
-    // Towering Left & Right Mountain Ridges above the Canyon Rim (extending up into the LCD keys!)
+    // Towering Left & Right Mountain Ridges above the Canyon Rim
     parts.push(
       `<polygon points="${far.peakLeftX},${far.peakLeftY} ${near.peakLeftX},${near.peakLeftY} ${near.rimLeftX},${near.rimY} ${far.rimLeftX},${far.rimY}" fill="${leftPeakColors[sIdx]}" stroke="#2a0810" stroke-width="0.7"/>`,
       `<polygon points="${far.rimRightX},${far.rimY} ${near.rimRightX},${near.rimY} ${near.peakRightX},${near.peakRightY} ${far.peakRightX},${far.peakRightY}" fill="${rightPeakColors[sIdx]}" stroke="#1f050b" stroke-width="0.7"/>`
     );
 
-    // Canyon Floor quad (sweeps down into the Touch Strip!)
+    // Canyon Floor quad
     parts.push(
       `<polygon points="${far.floorLeftX},${far.floorY} ${far.floorRightX},${far.floorY} ${near.floorRightX},${near.floorY} ${near.floorLeftX},${near.floorY}" fill="${floorColors[sIdx]}"/>`
     );
@@ -207,19 +203,18 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
       `<polygon points="${far.riverLeftX},${far.floorY} ${far.riverRightX},${far.floorY} ${near.riverRightX},${near.floorY} ${near.riverLeftX},${near.floorY}" fill="${riverCol}" opacity="0.8"/>`
     );
 
-    // Left Cliff Wall (connects Touch Strip floor up to the LCD buttons!)
+    // Left Cliff Wall
     parts.push(
       `<polygon points="${far.rimLeftX},${far.rimY} ${near.rimLeftX},${near.rimY} ${near.midLeftX},${near.midY} ${far.midLeftX},${far.midY}" fill="${leftUpperColors[sIdx]}" stroke="#2a0810" stroke-width="0.7"/>`,
       `<polygon points="${far.midLeftX},${far.midY} ${near.midLeftX},${near.midY} ${near.floorLeftX},${near.floorY} ${far.floorLeftX},${far.floorY}" fill="${leftLowerColors[sIdx]}" stroke="#2a0810" stroke-width="0.7"/>`
     );
 
-    // Right Cliff Wall (connects Touch Strip floor up to the LCD buttons!)
+    // Right Cliff Wall
     parts.push(
       `<polygon points="${far.rimRightX},${far.rimY} ${near.rimRightX},${near.rimY} ${near.midRightX},${near.midY} ${far.midRightX},${far.midY}" fill="${rightUpperColors[sIdx]}" stroke="#1f050b" stroke-width="0.7"/>`,
       `<polygon points="${far.midRightX},${far.midY} ${near.midRightX},${near.midY} ${near.floorRightX},${near.floorY} ${far.floorRightX},${far.floorY}" fill="${rightLowerColors[sIdx]}" stroke="#1f050b" stroke-width="0.7"/>`
     );
 
-    // Natural rock arch spanning the canyon across the buttons
     if (near.slice.hasArch) {
       const archTopY = near.rimY + Math.round(8 * near.scale);
       const archBotY = near.rimY + Math.round(24 * near.scale);
@@ -251,12 +246,10 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
 
   // 4. THE WINGMAN ON THE TOUCH STRIP (y = 360..460, centered at x = 400)
   const birdX = 400;
-  // Subtle vertical shift within the Touch Strip (394..432) based on pitch so he stays on the Touch Strip
   const birdY = Math.round(
     416 - Math.max(-18, Math.min(22, engine.pitch * 0.45))
   );
 
-  // Shadow on the Touch Strip canyon floor
   const agl = Math.max(0, engine.playerY - currentSlice.floorY);
   if (agl < 65 && engine.phase !== "CARNAGE") {
     const shadowY = Math.min(454, Math.round(birdY + 14 + agl * 0.4));
@@ -267,7 +260,6 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
   }
 
   if (engine.phase === "CARNAGE") {
-    // Carnage erupts on the Touch Strip and splatters upward across the 8 LCD keys!
     parts.push(`<g transform="translate(${birdX},${birdY})">`);
     const shockR = Math.min(340, Math.round(28 + engine.phaseElapsedSec * 240));
     const shockOpacity = Math.max(0, 0.9 - engine.phaseElapsedSec * 0.5);
@@ -280,7 +272,7 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
 
     for (const p of engine.particles) {
       const px = Math.round(p.x * 1.35);
-      const py = Math.round(p.y * 1.35 - 40); // Launch debris upward into the buttons too!
+      const py = Math.round(p.y * 1.35 - 40);
       if (p.kind === "helmet") {
         parts.push(
           `<g transform="translate(${px},${py}) rotate(${Math.round(p.rotation)})">`,
@@ -301,7 +293,6 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
     }
     parts.push(`</g>`);
 
-    // Visceral blood splatters across both the LCD buttons AND Touch Strip
     for (const s of engine.screenSplats) {
       const sx = Math.round(s.nx * W);
       const sy = Math.round(s.ny * H);
@@ -314,12 +305,12 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
       );
     }
 
-    // Big Carnage Banner across Row 1 Buttons (y = 205..315)
+    // Carnage banner across the 2 open bottom-middle buttons ((1,1) & (2,1): x = 228..572, y = 215..305)
     parts.push(
-      `<rect x="190" y="206" width="420" height="110" rx="14" fill="#140206" opacity="0.92" stroke="#ff1e27" stroke-width="3"/>`,
-      `<text x="400" y="246" text-anchor="middle" fill="#ff2a2a" font-family="Arial, sans-serif" font-weight="900" font-size="32" letter-spacing="2">CARNAGE! SPLAT!</text>`,
-      `<text x="400" y="274" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="700" font-size="16">${engine.lastCrashReason} (${engine.crashSpeed} MPH)</text>`,
-      `<text x="400" y="302" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="800" font-size="19">SCORE: ${Math.floor(engine.score)}   |   BEST: ${engine.highScore}</text>`
+      `<rect x="228" y="214" width="344" height="92" rx="12" fill="#140206" opacity="0.9" stroke="#ff1e27" stroke-width="2.5"/>`,
+      `<text x="400" y="248" text-anchor="middle" fill="#ff2a2a" font-family="Arial, sans-serif" font-weight="900" font-size="28" letter-spacing="1.5">CARNAGE! SPLAT!</text>`,
+      `<text x="400" y="273" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="700" font-size="14">${engine.lastCrashReason} (${engine.crashSpeed} MPH)</text>`,
+      `<text x="400" y="296" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="800" font-size="16">SCORE: ${Math.floor(engine.score)}   |   BEST: ${engine.highScore}</text>`
     );
   } else {
     // Wingtip vortex trails on the Touch Strip
@@ -336,72 +327,17 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
       `<path d="M ${rightTipX} ${rightTipY} Q ${rightTipX + 24} ${rightTipY + 18} ${rightTipX + 42} ${rightTipY + 38}" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5" stroke-dasharray="6 4"/>`
     );
 
-    // Draw the 3rd-person Wingman centered on the Touch Strip!
+    // Draw the 3rd-person Wingman centered on the Touch Strip
     parts.push(
       `<g transform="translate(${birdX},${birdY}) rotate(${engine.roll.toFixed(1)}) scale(1.05,${(pitchSquash * 0.92).toFixed(2)})">`,
       renderBirdmanSprite(engine),
       `</g>`
     );
-
-    // Subtle left & right dial quick-prompts on the far edges of the Touch Strip (col 0 and col 3)
-    const pitchSign = engine.pitch >= 0 ? `+${Math.round(engine.pitch)}° UP` : `${Math.round(engine.pitch)}° DN`;
-    const rollText =
-      Math.abs(engine.roll) < 2
-        ? "LEVEL"
-        : engine.roll < 0
-        ? `${Math.round(Math.abs(engine.roll))}° L`
-        : `${Math.round(engine.roll)}° R`;
-
-    parts.push(
-      // Leftmost Touch Strip edge (Dial 1 Pitch telemetry)
-      `<rect x="10" y="370" width="135" height="80" rx="8" fill="#080b16" opacity="0.68" stroke="#00f5d4" stroke-width="1.2"/>`,
-      `<text x="20" y="390" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">◀ DIAL 1: PITCH</text>`,
-      `<text x="20" y="414" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="18">${pitchSign}</text>`,
-      `<text x="20" y="436" fill="#ffd166" font-family="Arial, sans-serif" font-weight="700" font-size="11">${Math.round(engine.speed)} MPH (STALL ${engine.STALL_SPEED})</text>`,
-
-      // Rightmost Touch Strip edge (Dial 4 Steer telemetry)
-      `<rect x="655" y="370" width="135" height="80" rx="8" fill="#080b16" opacity="0.68" stroke="#00f5d4" stroke-width="1.2"/>`,
-      `<text x="780" y="390" text-anchor="end" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">DIAL 4: STEER ▶</text>`,
-      `<text x="780" y="414" text-anchor="end" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="18">${rollText}</text>`,
-      `<text x="780" y="436" text-anchor="end" fill="#ffd166" font-family="Arial, sans-serif" font-weight="700" font-size="11">PROX x${engine.proximityMultiplier.toFixed(1)}</text>`
-    );
-
-    // Status Banners across Row 1 Buttons (y = 220..290) when READY, CHUTE, or Warning
-    if (engine.phase === "READY") {
-      parts.push(
-        `<rect x="210" y="226" width="380" height="62" rx="12" fill="#0d0628" opacity="0.84" stroke="#00f5d4" stroke-width="2"/>`,
-        `<text x="400" y="252" text-anchor="middle" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="19" letter-spacing="1">TURN ANY DIAL TO DROP IN!</text>`,
-        `<text x="400" y="274" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="700" font-size="13">LEFT DIAL: PITCH UP/DOWN   |   RIGHT DIAL: STEER L/R</text>`
-      );
-    } else if (engine.phase === "CHUTE") {
-      const landed = engine.speed === 0;
-      parts.push(
-        `<rect x="200" y="222" width="400" height="68" rx="12" fill="#081c24" opacity="0.88" stroke="#00f5d4" stroke-width="2.5"/>`,
-        `<text x="400" y="248" text-anchor="middle" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="20">${
-          landed ? "SAFE LANDING! RUN COMPLETE" : "CHUTE DEPLOYED! (TOO SLOW)"
-        }</text>`,
-        `<text x="400" y="276" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="800" font-size="18">FINAL SCORE: ${Math.floor(engine.score)}   |   HIGH: ${engine.highScore}</text>`
-      );
-    } else if (engine.phase === "FLYING" && engine.speed < engine.STALL_SPEED + 16) {
-      if (engine.tickCount % 2 === 0) {
-        parts.push(
-          `<rect x="250" y="236" width="300" height="36" rx="8" fill="#00bbf9" opacity="0.9"/>`,
-          `<text x="400" y="260" text-anchor="middle" fill="#060614" font-family="Arial, sans-serif" font-weight="900" font-size="16">SLOW SPEED! CHUTE ABOUT TO POP!</text>`
-        );
-      }
-    } else if (engine.phase === "FLYING" && agl < 16) {
-      if (engine.tickCount % 2 === 0) {
-        parts.push(
-          `<rect x="260" y="236" width="280" height="36" rx="8" fill="#ff2a2a" opacity="0.9"/>`,
-          `<text x="400" y="260" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="16">PULL UP! TERRAIN PROXIMITY!</text>`
-        );
-      }
-    }
   }
 
-  // 5. TOP ROW BUTTON HUD OVERLAYS (Row 0 Keys: col 0..3, y = 0..160)
-  // Translucent cockpit HUD panels at the top of Row 0 so the mountain peaks & sunset sky shine through!
-  parts.push(renderTopRowHudOverlays(engine, currentSlice, agl));
+  // 5. DETAILED COCKPIT HUD INSTRUMENTS ON THE 6 SURROUNDING BUTTONS
+  // (Leaving the 2 bottom-middle buttons (1,1) and (2,1) completely open for the 3D canyon & mountains!)
+  parts.push(renderSixButtonCockpitHud(engine, currentSlice, Math.round(agl)));
 
   if (shakeX !== 0 || shakeY !== 0) {
     parts.push(`</g>`);
@@ -411,103 +347,237 @@ export function buildMasterSceneSvgBody(engine: CanyonGameEngine): string {
 }
 
 /**
- * Renders the 4 HUD panels onto the Top Row of LCD Keys (Row 0, Col 0..3):
- * - Key (0,0): AIRSPEED & STALL / PITCH HUD
- * - Key (1,0): CANYON RADAR & ALTITUDE HUD
- * - Key (2,0): SCORE & HIGH SCORE ARCADE HUD
- * - Key (3,0): STEERING / ROLL & CANYON ALIGNMENT HUD
+ * Renders the rich, detailed Touch-Strip-style cockpit gauges onto the 6 surrounding buttons:
+ * - Top Row:
+ *   - Button (0, 0) [x=20..180,  y=0..160]:   AIRSPEED & CHUTE STALL METER (MPH, Stall Bar, Speed Multiplier)
+ *   - Button (1, 0) [x=220..380, y=0..160]:   LIVE TOP-DOWN CANYON RADAR SCOPE & DISTANCE
+ *   - Button (2, 0) [x=420..580, y=0..160]:   ARCADE SCORE & HIGH SCORE BOARD + STATUS
+ *   - Button (3, 0) [x=620..780, y=0..160]:   ALTIMETER TAPE & PROXIMITY MULTIPLIER GAUGE
+ * - Bottom Row Outer Buttons (while (1,1) & (2,1) stay 100% OPEN for the canyon mountains!):
+ *   - Button (0, 1) [x=20..180,  y=180..340]: DIAL 1 PITCH & ARTIFICIAL HORIZON LADDER (Climb/Dive)
+ *   - Button (3, 1) [x=620..780, y=180..340]: DIAL 4 STEERING / WINGSUIT ROLL & CANYON ALIGNMENT BAR
  */
-function renderTopRowHudOverlays(engine: CanyonGameEngine, slice: CanyonSlice, agl: number): string {
+function renderSixButtonCockpitHud(engine: CanyonGameEngine, slice: CanyonSlice, agl: number): string {
   const scoreInt = Math.floor(engine.score);
-  const hudParts: string[] = [];
+  const hud: string[] = [];
 
-  // --- KEY (0, 0) [x = 20..180, y = 0..160]: SPEED, STALL BAR & PITCH ---
+  const panelBg =
+    engine.phase === "CARNAGE"
+      ? "#2b0509"
+      : engine.phase === "CHUTE"
+      ? "#072227"
+      : "#0a0e1c";
+  const borderCol =
+    engine.phase === "CARNAGE"
+      ? "#ff2a2a"
+      : engine.phase === "CHUTE"
+      ? "#00f5d4"
+      : "#2e3b63";
+
+  // ============================================================================
+  // 1. TOP-LEFT BUTTON (0, 0) [x=20..180, y=0..160]: AIRSPEED & CHUTE STALL METER
+  // ============================================================================
   const speedRatio = Math.max(
     0,
     Math.min(1, (engine.speed - engine.STALL_SPEED) / (engine.MAX_SPEED - engine.STALL_SPEED))
   );
-  const speedBarW = Math.round(speedRatio * 128);
-  const speedCol =
+  const barW = Math.round(speedRatio * 132);
+  const speedColor =
     engine.speed < engine.STALL_SPEED + 18
       ? "#00f5d4"
-      : engine.speed > 195
+      : engine.speed > 190
       ? "#ff2a2a"
       : "#ffbe0b";
-  hudParts.push(
-    `<rect x="28" y="8" width="144" height="86" rx="10" fill="#090c1a" opacity="0.76" stroke="#2b3558" stroke-width="1.5"/>`,
-    `<text x="38" y="26" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="11">AIRSPEED / STALL</text>`,
-    `<text x="38" y="52" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="24">${Math.round(engine.speed)} <tspan font-size="12" fill="#ffd166">MPH</tspan></text>`,
-    `<rect x="36" y="60" width="128" height="10" rx="4" fill="#1b2238" stroke="#3d4b73" stroke-width="1"/>`,
-    `<rect x="36" y="60" width="${speedBarW}" height="10" rx="4" fill="${speedCol}"/>`,
-    `<text x="38" y="85" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="800" font-size="11">CHUTE AT ${engine.STALL_SPEED} MPH</text>`
+  const speedMult = Math.pow(Math.max(0.5, engine.speed / engine.BASE_START_SPEED), 1.45).toFixed(1);
+
+  hud.push(
+    `<rect x="26" y="6" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.82" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="36" y="26" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="11">AIRSPEED &amp; STALL</text>`,
+    `<text x="164" y="26" text-anchor="end" fill="#ffbe0b" font-family="Arial, sans-serif" font-weight="900" font-size="11">SPD x${speedMult}</text>`,
+    `<text x="100" y="66" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="36">${Math.round(engine.speed)}<tspan font-size="13" fill="#8d99ae"> MPH</tspan></text>`,
+
+    // Stall vs Max Speed Bar with tick marks
+    `<rect x="34" y="80" width="132" height="16" rx="5" fill="#161d33" stroke="#3d4b73" stroke-width="1.2"/>`,
+    `<rect x="34" y="80" width="22" height="16" rx="4" fill="#00f5d4" opacity="0.35"/>`,
+    `<rect x="34" y="80" width="${barW}" height="16" rx="5" fill="${speedColor}"/>`,
+    `<text x="34" y="112" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="800" font-size="11">STALL: ${engine.STALL_SPEED}</text>`,
+    `<text x="166" y="112" text-anchor="end" fill="#ff595e" font-family="Arial, sans-serif" font-weight="800" font-size="11">MAX: ${engine.MAX_SPEED}</text>`,
+    `<line x1="34" y1="122" x2="166" y2="122" stroke="#2b3558" stroke-width="1"/>`,
+    `<text x="100" y="140" text-anchor="middle" fill="${
+      engine.speed < engine.STALL_SPEED + 18 ? "#00f5d4" : "#cbd5e1"
+    }" font-family="Arial, sans-serif" font-weight="800" font-size="11">${
+      engine.speed < engine.STALL_SPEED + 18 ? "⚠ SLOW! CHUTE RISK!" : "TOO SLOW = CHUTE POPS"
+    }</text>`
   );
 
-  // --- KEY (1, 0) [x = 220..380, y = 0..160]: TOP-DOWN CANYON RADAR & ALTITUDE ---
-  const radarLeft: string[] = [];
-  const radarRight: string[] = [];
-  for (let r = 0; r <= 4; r++) {
-    const s = engine.sampleCanyonAt(engine.playerZ + r * 50);
-    const ry = 82 - r * 15;
-    const rxC = 266 + (s.centerX - engine.playerX) * 0.28;
-    const rw = s.floorHalfWidth * 0.28;
-    radarLeft.push(`${Math.round(rxC - rw)},${ry}`);
-    radarRight.push(`${Math.round(rxC + rw)},${ry}`);
+  // ============================================================================
+  // 2. TOP-MID-LEFT BUTTON (1, 0) [x=220..380, y=0..160]: TOP-DOWN CANYON RADAR
+  // ============================================================================
+  const radarPointsLeft: string[] = [];
+  const radarPointsRight: string[] = [];
+  const radarCenterLine: string[] = [];
+  for (let r = 0; r <= 6; r++) {
+    const s = engine.sampleCanyonAt(engine.playerZ + r * 42);
+    const ry = 122 - r * 14;
+    const rxCenter = 300 + (s.centerX - engine.playerX) * 0.42;
+    const rw = s.floorHalfWidth * 0.42;
+    radarPointsLeft.push(`${Math.round(rxCenter - rw)},${ry}`);
+    radarPointsRight.push(`${Math.round(rxCenter + rw)},${ry}`);
+    radarCenterLine.push(`${Math.round(rxCenter)},${ry}`);
   }
-  const distKm = (Math.max(0, engine.playerZ) / 1000).toFixed(1);
-  hudParts.push(
-    `<rect x="228" y="8" width="144" height="86" rx="10" fill="#090c1a" opacity="0.76" stroke="#2b3558" stroke-width="1.5"/>`,
-    `<rect x="236" y="16" width="60" height="70" rx="6" fill="#05101a" stroke="#1982c4" stroke-width="1.2"/>`,
-    `<polyline points="${radarLeft.join(" ")}" fill="none" stroke="#ff595e" stroke-width="2"/>`,
-    `<polyline points="${radarRight.join(" ")}" fill="none" stroke="#ff595e" stroke-width="2"/>`,
-    `<polygon points="266,74 261,83 266,80 271,83" fill="#00f5d4"/>`,
-    `<text x="304" y="30" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">ALTITUDE</text>`,
-    `<text x="304" y="48" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="16">${agl} FT</text>`,
-    `<text x="304" y="67" fill="#ffbe0b" font-family="Arial, sans-serif" font-weight="900" font-size="13">PROX x${engine.proximityMultiplier.toFixed(1)}</text>`,
-    `<text x="304" y="84" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="700" font-size="11">${distKm} KM</text>`
+  const distKm = (Math.max(0, engine.playerZ) / 1000).toFixed(2);
+
+  hud.push(
+    `<rect x="226" y="6" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.82" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="236" y="25" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="11">CANYON RADAR</text>`,
+    `<text x="364" y="25" text-anchor="end" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">${distKm} KM</text>`,
+    // Radar Scope Screen
+    `<rect x="236" y="32" width="128" height="96" rx="8" fill="#05121c" stroke="#1982c4" stroke-width="1.5"/>`,
+    `<line x1="300" y1="32" x2="300" y2="128" stroke="#11324d" stroke-width="1" stroke-dasharray="3 3"/>`,
+    `<line x1="236" y1="80" x2="364" y2="80" stroke="#11324d" stroke-width="1" stroke-dasharray="3 3"/>`,
+    `<polyline points="${radarCenterLine.join(" ")}" fill="none" stroke="#1982c4" stroke-width="1.2" stroke-dasharray="3 3"/>`,
+    `<polyline points="${radarPointsLeft.join(" ")}" fill="none" stroke="#ff595e" stroke-width="2.5"/>`,
+    `<polyline points="${radarPointsRight.join(" ")}" fill="none" stroke="#ff595e" stroke-width="2.5"/>`,
+    `<polygon points="300,108 293,122 300,118 307,122" fill="#00f5d4" stroke="#ffffff" stroke-width="0.8"/>`,
+    `<text x="300" y="144" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-weight="700" font-size="11">WINDING GORGE AHEAD</text>`
   );
 
-  // --- KEY (2, 0) [x = 420..580, y = 0..160]: SCORE & HIGH SCORE ---
+  // ============================================================================
+  // 3. TOP-MID-RIGHT BUTTON (2, 0) [x=420..580, y=0..160]: SCORE & HIGH SCORE
+  // ============================================================================
+  const statusText =
+    engine.phase === "READY"
+      ? "TURN DIAL TO START"
+      : engine.phase === "FLYING"
+      ? engine.isNewHighScore
+        ? "★ NEW HIGH SCORE! ★"
+        : "SCORING ACTIVE"
+      : engine.phase === "CHUTE"
+      ? "CHUTE POPPED (SAFE)"
+      : "SPLAT! CARNAGE!";
   const statusCol =
     engine.phase === "CARNAGE"
       ? "#ff2a2a"
       : engine.isNewHighScore
       ? "#ffbe0b"
       : "#00f5d4";
-  const statusLabel =
-    engine.phase === "READY"
-      ? "READY TO FLY"
-      : engine.isNewHighScore
-      ? "NEW RECORD!"
-      : "SCORE";
-  hudParts.push(
-    `<rect x="428" y="8" width="144" height="86" rx="10" fill="#090c1a" opacity="0.76" stroke="#2b3558" stroke-width="1.5"/>`,
-    `<text x="500" y="26" text-anchor="middle" fill="${statusCol}" font-family="Arial, sans-serif" font-weight="900" font-size="11">${statusLabel}</text>`,
-    `<text x="500" y="58" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="28">${scoreInt}</text>`,
-    `<text x="500" y="84" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="800" font-size="13">BEST: ${engine.highScore}</text>`
+
+  hud.push(
+    `<rect x="426" y="6" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.82" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="500" y="26" text-anchor="middle" fill="${statusCol}" font-family="Arial, sans-serif" font-weight="900" font-size="11" letter-spacing="0.5">${statusText}</text>`,
+    `<text x="500" y="44" text-anchor="middle" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">CURRENT RUN SCORE</text>`,
+    `<text x="500" y="82" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="36">${scoreInt}</text>`,
+    `<line x1="440" y1="96" x2="560" y2="96" stroke="#2b3558" stroke-width="1.5"/>`,
+    `<text x="500" y="114" text-anchor="middle" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">ALL-TIME HIGH SCORE</text>`,
+    `<text x="500" y="140" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="900" font-size="24">${engine.highScore}</text>`
   );
 
-  // --- KEY (3, 0) [x = 620..780, y = 0..160]: STEERING & CANYON GATE ALIGNMENT ---
+  // ============================================================================
+  // 4. TOP-RIGHT BUTTON (3, 0) [x=620..780, y=0..160]: ALTIMETER & PROXIMITY
+  // ============================================================================
+  const altRatio = Math.max(0, Math.min(1, agl / 95));
+  const altMarkerY = Math.round(124 - altRatio * 84);
+  const altDanger = agl < 18;
+
+  hud.push(
+    `<rect x="626" y="6" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.82" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="636" y="25" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="11">ALTIMETER &amp; PROX</text>`,
+    // Vertical Altimeter Tape on left side of button
+    `<rect x="636" y="36" width="26" height="92" rx="5" fill="#161d33" stroke="#3d4b73" stroke-width="1.2"/>`,
+    `<rect x="636" y="110" width="26" height="18" rx="3" fill="#d90429" opacity="0.65"/>`,
+    `<line x1="636" y1="54" x2="662" y2="54" stroke="#00f5d4" stroke-width="1.5" stroke-dasharray="3 2"/>`,
+    `<circle cx="649" cy="${altMarkerY}" r="5.5" fill="${altDanger ? "#ff2a2a" : "#00f5d4"}" stroke="#ffffff" stroke-width="1.5"/>`,
+    // Digital Altitude & Proximity Readout on right side of button
+    `<text x="672" y="50" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">ALTITUDE (AGL)</text>`,
+    `<text x="672" y="76" fill="${altDanger ? "#ff2a2a" : "#ffffff"}" font-family="Arial, sans-serif" font-weight="900" font-size="24">${agl} <tspan font-size="12" fill="#8d99ae">FT</tspan></text>`,
+    `<text x="672" y="98" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">PROXIMITY BONUS</text>`,
+    `<text x="672" y="124" fill="#ffbe0b" font-family="Arial, sans-serif" font-weight="900" font-size="24">x${engine.proximityMultiplier.toFixed(1)}</text>`,
+    `<text x="700" y="144" text-anchor="middle" fill="${altDanger ? "#ff2a2a" : "#94a3b8"}" font-family="Arial, sans-serif" font-weight="800" font-size="11">${
+      altDanger ? "⚠ PULL UP! LOW ALT!" : "FLY LOW FOR BONUS"
+    }</text>`
+  );
+
+  // ============================================================================
+  // 5. BOTTOM-LEFT BUTTON (0, 1) [x=20..180, y=180..340]: DIAL 1 PITCH HORIZON
+  // ============================================================================
+  const pitchSign = engine.pitch >= 0 ? `+${Math.round(engine.pitch)}° UP` : `${Math.round(engine.pitch)}° DN`;
+  const horizonLineY = Math.max(222, Math.min(292, Math.round(257 - engine.pitch * 0.85)));
+
+  hud.push(
+    `<rect x="26" y="186" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.78" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="36" y="206" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">DIAL 1: PITCH</text>`,
+    `<text x="164" y="206" text-anchor="end" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="13">${pitchSign}</text>`,
+
+    // Artificial Horizon Pitch Ladder Scope
+    `<rect x="36" y="214" width="128" height="86" rx="8" fill="#10182b" stroke="#3d4b73" stroke-width="1.5"/>`,
+    `<line x1="65" y1="235" x2="135" y2="235" stroke="#475569" stroke-width="1" stroke-dasharray="4 4"/>`,
+    `<line x1="55" y1="257" x2="145" y2="257" stroke="#64748b" stroke-width="1"/>`,
+    `<line x1="65" y1="279" x2="135" y2="279" stroke="#475569" stroke-width="1" stroke-dasharray="4 4"/>`,
+    `<line x1="42" y1="${horizonLineY}" x2="158" y2="${horizonLineY}" stroke="#00f5d4" stroke-width="3" stroke-linecap="round"/>`,
+    `<circle cx="100" cy="257" r="4" fill="#ffbe0b" stroke="#ffffff" stroke-width="1.2"/>`,
+
+    `<text x="100" y="315" text-anchor="middle" fill="#ffd166" font-family="Arial, sans-serif" font-weight="800" font-size="11">▲ UP: CLIMB &amp; SLOW</text>`,
+    `<text x="100" y="329" text-anchor="middle" fill="#ff595e" font-family="Arial, sans-serif" font-weight="800" font-size="11">▼ DN: DIVE &amp; SPEED</text>`
+  );
+
+  // ============================================================================
+  // 6. BOTTOM-RIGHT BUTTON (3, 1) [x=620..780, y=180..340]: DIAL 4 STEER & ROLL
+  // ============================================================================
   const canyonShift = slice.centerX - engine.playerX;
   const normOffset = Math.max(-1, Math.min(1, canyonShift / Math.max(1, slice.floorHalfWidth)));
-  const gateX = Math.round(700 + normOffset * 46);
-  hudParts.push(
-    `<rect x="628" y="8" width="144" height="86" rx="10" fill="#090c1a" opacity="0.76" stroke="#2b3558" stroke-width="1.5"/>`,
-    `<text x="700" y="25" text-anchor="middle" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="11">CANYON ALIGNMENT</text>`,
-    `<g transform="translate(700, 46) rotate(${engine.roll.toFixed(1)})">`,
-    `<polygon points="-28,0 0,-5 28,0 12,7 0,3 -12,7" fill="#ff2a2a" stroke="#ffffff" stroke-width="1.4"/>`,
+  const canyonGateX = Math.round(700 + normOffset * 48);
+  const rollText =
+    Math.abs(engine.roll) < 2
+      ? "LEVEL"
+      : engine.roll < 0
+      ? `${Math.round(Math.abs(engine.roll))}° L`
+      : `${Math.round(engine.roll)}° R`;
+
+  hud.push(
+    `<rect x="626" y="186" width="148" height="148" rx="14" fill="${panelBg}" opacity="0.78" stroke="${borderCol}" stroke-width="2"/>`,
+    `<text x="636" y="206" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="11">DIAL 4: STEER</text>`,
+    `<text x="764" y="206" text-anchor="end" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="13">${rollText}</text>`,
+
+    // Rotating Wingsuit Attitude Indicator
+    `<rect x="636" y="214" width="128" height="58" rx="8" fill="#10182b" stroke="#3d4b73" stroke-width="1.5"/>`,
+    `<g transform="translate(700, 244) rotate(${engine.roll.toFixed(1)})">`,
+    `<polygon points="-38,0 0,-7 38,0 16,10 0,5 -16,10" fill="#ff2a2a" stroke="#ffffff" stroke-width="1.6"/>`,
+    `<circle cx="0" cy="-6" r="4.5" fill="#ffffff"/>`,
     `</g>`,
-    `<rect x="640" y="66" width="120" height="10" rx="5" fill="#1b2238" stroke="#3d4b73" stroke-width="1"/>`,
-    `<rect x="${gateX - 14}" y="65" width="28" height="12" rx="4" fill="none" stroke="#00f5d4" stroke-width="2"/>`,
-    `<circle cx="700" cy="71" r="4.5" fill="#ffbe0b" stroke="#ffffff" stroke-width="1.2"/>`
+
+    // Canyon Path Alignment Bar
+    `<text x="700" y="286" text-anchor="middle" fill="#8d99ae" font-family="Arial, sans-serif" font-weight="800" font-size="10">CANYON PATH ALIGNMENT</text>`,
+    `<rect x="636" y="294" width="128" height="12" rx="6" fill="#161d33" stroke="#3d4b73" stroke-width="1.2"/>`,
+    `<rect x="636" y="294" width="12" height="12" rx="3" fill="#d90429"/>`,
+    `<rect x="752" y="294" width="12" height="12" rx="3" fill="#d90429"/>`,
+    `<rect x="${canyonGateX - 16}" y="292" width="32" height="16" rx="4" fill="none" stroke="#00f5d4" stroke-width="2"/>`,
+    `<circle cx="700" cy="300" r="5" fill="#ffbe0b" stroke="#ffffff" stroke-width="1.5"/>`,
+    `<text x="700" y="325" text-anchor="middle" fill="#cbd5e1" font-family="Arial, sans-serif" font-weight="800" font-size="11">↺ BANK L   |   BANK R ↻</text>`
   );
 
-  return hudParts.join("");
+  // ============================================================================
+  // 7. OPEN BOTTOM-MIDDLE BUTTONS ((1, 1) & (2, 1)) STATUS CALLOUTS (ONLY WHEN NEEDED)
+  // ============================================================================
+  if (engine.phase === "READY") {
+    hud.push(
+      `<rect x="236" y="302" width="328" height="32" rx="8" fill="#0d0628" opacity="0.82" stroke="#00f5d4" stroke-width="1.5"/>`,
+      `<text x="400" y="323" text-anchor="middle" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="15" letter-spacing="0.8">TURN ANY DIAL TO DROP IN!</text>`
+    );
+  } else if (engine.phase === "CHUTE") {
+    const landed = engine.speed === 0;
+    hud.push(
+      `<rect x="230" y="298" width="340" height="36" rx="8" fill="#081c24" opacity="0.88" stroke="#00f5d4" stroke-width="2"/>`,
+      `<text x="400" y="321" text-anchor="middle" fill="#00f5d4" font-family="Arial, sans-serif" font-weight="900" font-size="15">${
+        landed ? "SAFE LANDING! PRESS KEY TO RESET" : "CHUTE DEPLOYED! FLOATING DOWN..."
+      }</text>`
+    );
+  }
+
+  return hud.join("");
 }
 
 /**
  * Slices out a single 144x144 key image at (col, row) from the unified 800x460 master scene.
- * - Row 0: y = 0..160   (Sky, Mountain Peaks, HUD)
- * - Row 1: y = 180..340 (Towering Canyon Walls extending up from the Touch Strip)
  */
 export function renderKeyTileSvg(masterBody: string, col: number, row: number): string {
   const clampedCol = Math.max(0, Math.min(3, col));
